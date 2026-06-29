@@ -3,3 +3,5 @@ set_io clk D1
 set_io led_pin B6
 
 set_io uart_tx_pin B3
+
+set_io uart_rx_pin A3

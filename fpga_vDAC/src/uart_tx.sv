@@ -1,5 +1,6 @@
-// UART TX
-// Transmits a single byte using the standard UART protocol (1 start bit, 8 data bits, 1 stop bit).
+// UART Transmitter
+// Transmits a single byte using
+// the standard UART protocol (1 start bit, 8 data bits, 1 stop bit).
 
 module uart_tx #(
     parameter CLKS_PER_BIT = 104 // 12 MHz / 115200 baud = 104

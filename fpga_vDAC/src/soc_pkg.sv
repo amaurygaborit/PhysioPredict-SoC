@@ -10,7 +10,7 @@ package soc_pkg;
 
     // WFDB Dataset
     parameter DATASET_SIZE   = 1024; // Number of extracted data points
-    parameter SAMPLE_RATE_HZ = 2;    // Transmission rate in Hz
+    parameter SAMPLE_RATE_HZ = 10;    // Transmission rate in Hz
     
     parameter SAMPLE_TIMER_MAX = SYS_CLK_FREQ / SAMPLE_RATE_HZ; // Timer threshold for target rate
 
