@@ -1,5 +1,5 @@
-// Acts as a Slave. Streams physiological data to UART and
-// generates an analog signal via Delta-Sigma DAC when receiving 's'.
+// Streams physiological data to UART and
+// generates an analog signal via Delta-Sigma DAC
 
 import soc_pkg::*;
 
@@ -7,12 +7,12 @@ module top (
     input  logic clk,
     input  logic uart_rx_pin,    // UART RX pin from Master (STM32/PC)
     output logic uart_tx_pin,    // UART TX pin to PC
-    output logic analog_out_pin, // Physical pin for the RC Filter (DAC)
-    output logic led_pin         // iCESugar yellow LED (Status)
+    output logic analog_out_pin, // Physical pin for DAC
+    output logic led_pin         // Yellow LED for status
 );
 
     // BRAM Declaration and Initialization
-    logic [7:0] ecg_bram [0:DATASET_SIZE-1];
+    logic [7:0] ecg_bram [0:DATASET_SIZE - 1];
     
     initial $readmemh("../build/dataset.txt", ecg_bram);
 
@@ -32,12 +32,12 @@ module top (
 
     // Command Decoder (Master/Slave Control)
     logic is_streaming = 0; // Paused
-    wire [7:0] rx_data;
-    wire       rx_valid;
+    logic [7:0] rx_data;
+    logic       rx_valid;
 
     always_ff @(posedge clk) begin
         if (rx_valid == 1'b1) begin
-            if (rx_data == 8'h73) begin      // ASCII 's'
+            if (rx_data == 8'h73) begin          // ASCII 's'
                 is_streaming <= 1'b1;
             end else if (rx_data == 8'h70) begin // ASCII 'p'
                 is_streaming <= 1'b0;
@@ -49,7 +49,7 @@ module top (
     logic [31:0] rom_addr = 0;
     logic        tx_start = 0;
     logic [7:0]  tx_data  = 0;
-    wire         tx_ready;
+    logic        tx_ready;
     
     logic [7:0]  current_ecg_val = 0; // Value fed to the DAC
 
@@ -80,7 +80,7 @@ module top (
         end
     end
 
-    // Visual Indicator (LED Active Low)
+    // Visual Indicator
     assign led_pin = ~is_streaming;
 
     // DAC Instance
