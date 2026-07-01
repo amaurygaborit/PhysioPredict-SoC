@@ -1,14 +1,14 @@
-// BRAM WFDB Reader and UART Streaming with RX Control
-// Reads physiological data from BRAM and streams it via UART.
-// Acts as a Slave: waits for 'S' (Start) or 'P' (Pause) commands.
+// Acts as a Slave. Streams physiological data to UART and
+// generates an analog signal via Delta-Sigma DAC when receiving 's'.
 
 import soc_pkg::*;
 
 module top (
-    input  logic clk,         // System clock (12 MHz)
-    input  logic uart_rx_pin, // UART RX pin from Master (STM32/PC)
-    output logic uart_tx_pin, // UART TX pin to PC
-    output logic led_pin      // iCESugar yellow LED
+    input  logic clk,
+    input  logic uart_rx_pin,    // UART RX pin from Master (STM32/PC)
+    output logic uart_tx_pin,    // UART TX pin to PC
+    output logic analog_out_pin, // Physical pin for the RC Filter (DAC)
+    output logic led_pin         // iCESugar yellow LED (Status)
 );
 
     // BRAM Declaration and Initialization
@@ -31,45 +31,67 @@ module top (
     end
 
     // Command Decoder (Master/Slave Control)
-    logic       is_streaming = 0; // Default: Paused
-    wire [7:0]  rx_data;
-    wire        rx_valid;
+    logic is_streaming = 0; // Paused
+    wire [7:0] rx_data;
+    wire       rx_valid;
 
     always_ff @(posedge clk) begin
         if (rx_valid == 1'b1) begin
-            if (rx_data == 8'h53) begin      // ASCII 'S' (Start)
+            if (rx_data == 8'h73) begin      // ASCII 's'
                 is_streaming <= 1'b1;
-            end else if (rx_data == 8'h50) begin // ASCII 'P' (Pause)
+            end else if (rx_data == 8'h70) begin // ASCII 'p'
                 is_streaming <= 1'b0;
             end
         end
     end
 
-    // Read and Transmit Logic
+    // Read Logic, DAC Register and UART Trigger
     logic [31:0] rom_addr = 0;
-    logic       tx_start = 0;
-    logic [7:0] tx_data  = 0;
-    wire        tx_ready;
+    logic        tx_start = 0;
+    logic [7:0]  tx_data  = 0;
+    wire         tx_ready;
+    
+    logic [7:0]  current_ecg_val = 0; // Value fed to the DAC
 
     always_ff @(posedge clk) begin
         tx_start <= 1'b0; 
         
-        // Wait for timer tick, UART readiness, AND Start command
-        if (is_streaming == 1'b1 && sample_tick == 1'b1 && tx_ready == 1'b1) begin
-            
-            tx_data  <= ecg_bram[rom_addr];
-            tx_start <= 1'b1;
-            
-            if (rom_addr < DATASET_SIZE - 1) begin
-                rom_addr <= rom_addr + 1;
+        if (sample_tick == 1'b1) begin
+            if (is_streaming == 1'b1) begin
+                // Update the value for the DAC
+                current_ecg_val <= ecg_bram[rom_addr];
+                
+                // Trigger UART Transmission if ready
+                if (tx_ready == 1'b1) begin
+                    tx_data  <= ecg_bram[rom_addr];
+                    tx_start <= 1'b1;
+                end
+                
+                // Move to next sample
+                if (rom_addr < DATASET_SIZE - 1) begin
+                    rom_addr <= rom_addr + 1;
+                end else begin
+                    rom_addr <= 0; // Loop dataset
+                end
             end else begin
-                rom_addr <= 0; // Loop dataset
+                // When paused, output 0V to the DAC
+                current_ecg_val <= 8'd0;
             end
         end
     end
 
-    // Visual Indicator (LED)
-    assign led_pin = ~is_streaming; 
+    // Visual Indicator (LED Active Low)
+    assign led_pin = ~is_streaming;
+
+    // DAC Instance
+    sigma_delta_dac #(
+        .DAC_BITLEN(8)
+    ) my_dac (
+        .clk(clk),
+        .rst(1'b0), // No reset needed
+        .dac_input(current_ecg_val),
+        .dac_pin(analog_out_pin)
+    );
 
     // UART Transmitter Instance
     uart_tx #(
@@ -82,7 +104,7 @@ module top (
         .tx_ready(tx_ready)
     );
 
-    // UART Receiver Instance (Listens to Master)
+    // UART Receiver Instance
     uart_rx #(
         .CLKS_PER_BIT(CLKS_PER_BIT)
     ) my_uart_rx (

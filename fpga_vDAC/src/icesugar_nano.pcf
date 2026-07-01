@@ -5,3 +5,5 @@ set_io led_pin B6
 set_io uart_tx_pin B3
 
 set_io uart_rx_pin A3
+
+set_io analog_out_pin A1

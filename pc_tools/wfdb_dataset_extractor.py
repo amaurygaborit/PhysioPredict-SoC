@@ -34,7 +34,7 @@ def extract_and_format_dataset():
     sig_max = np.max(raw_signal)
     
     # Calculate the maximum integer value for the given DAC bit depth
-    # Example: 8-bit -> 255, 12-bit -> 4095
+    # 8-bit -> 255
     max_dac_value = (1 << DAC_BIT_DEPTH) - 1 
     
     # Apply Min-Max Scaling: (X - Xmin) / (Xmax - Xmin) * TargetMax
@@ -45,7 +45,7 @@ def extract_and_format_dataset():
 
     print(f"3. Generating hexadecimal BRAM initialization file '{OUTPUT_FILE}'...")
     
-    # Calculate how many hex characters are needed (e.g., 8-bit -> 2 chars, 12-bit -> 3 chars)
+    # Calculate how many hex characters are needed (8-bit -> 2 chars)
     hex_width = (DAC_BIT_DEPTH + 3) // 4
     
     export_path = f"fpga_vDAC/build/{OUTPUT_FILE}"
